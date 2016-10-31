@@ -106,11 +106,7 @@ Backend for Z-Push, that adds the ability to connect to a ldap server
 Summary:    Z-Push Kopano backend
 Group:      Productivity/Networking/Email/Utilities
 Requires:   %name-common = %version
-%if 0%{?fedora_version} || 0%{?centos_version} || 0%{?rhel_version}
-Requires:   php-mapi-webapp
-%else
 Requires:   php-mapi
-%endif
 Provides:   %name-backend
 
 %description -n %name-backend-kopano
