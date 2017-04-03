@@ -1,3 +1,8 @@
+# WebTop Backends for Z-Push ActiveSync synchronization
+WebTop Z-Push backends for ActiveSync synchronization of calendars, contacts, tasks and email.
+
+Customizable configs are under backend/webtop\* directories.
+
 # Z-Push
 Z-Push is an open-source application to synchronize ActiveSync compatible devices such as mobile phones, tablets and Outlook 2013 and above. With a history of almost 10 years of successful synchronization with multiple backends Z-Push is the leading open source push synchronization.
 
