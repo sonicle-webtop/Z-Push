@@ -23,6 +23,8 @@
 * Consult LICENSE file for details
 ************************************************/
 
+include_once("backend/webtop/imap_config.php");
+
 // ************************
 //  BackendIMAP settings
 // ************************
@@ -78,7 +80,7 @@ define('IMAP_AUTOSEEN_ON_DELETE', false);
 
 // Since I know you won't configure this, I will raise an error unless you do.
 // When configured set this to true to remove the error
-define('IMAP_FOLDER_CONFIGURED', false);
+define('IMAP_FOLDER_CONFIGURED', true);
 
 // Folder prefix is the common part in your names (3, 4)
 define('IMAP_FOLDER_PREFIX', '');

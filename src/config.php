@@ -23,6 +23,8 @@
 * Consult LICENSE file for details
 ************************************************/
 
+include_once("backend/webtop/config.php");
+
 /**********************************************************************************
  *  Default settings
  */
