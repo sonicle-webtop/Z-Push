@@ -1,4 +1,11 @@
 <?php
+	/*
+	 * {orig-zpush-version}.{sonicle-revision}
+	 * eg. 2.3.4.0
+	 *    - 2.3.4 z-push version
+	 *    - 0 sonicle backend revision
+	 */
+	define('ZPUSH_VERSION','2.3.4.1');
 	// Webtop main config
     define('LOGBASE_DIR','/sonicle/var/log/z-push-sync/');
     define('STATEBASE_DIR', LOGBASE_DIR );
