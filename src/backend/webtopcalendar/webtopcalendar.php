@@ -1158,9 +1158,13 @@ class BackendWebTopCalendar extends BackendWebtop {
     }
 
     function getCategoryId($folderid,$username,$domain) {
-        $result = pg_query($this->db, 
-			"SELECT calendar_id FROM calendar.calendars WHERE user_id='".$username."' and domain_id='".$domain."' and name = '" .$folderid . "' "
-		);
+		$sql = "";
+		if ($this->device_ios || $this->device_outlook) {
+			$sql = "SELECT calendar_id FROM calendar.calendars WHERE user_id='".$username."' and domain_id='".$domain."' and name = '" .$folderid . "'";
+		} else {
+			$sql = "SELECT calendar_id FROM calendar.calendars WHERE user_id='".$username."' and domain_id='".$domain."' and built_in = true";
+		}
+        $result = pg_query($this->db, $sql);
         if ($result == FALSE)
             throw new Exception(pg_last_error($this->db));
         while ($rows = pg_fetch_row($result)) {

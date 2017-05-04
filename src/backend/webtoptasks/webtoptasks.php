@@ -418,7 +418,13 @@ class BackendWebTopTasks extends BackendWebtop {
 	
 
 	function getCategoryId($folderid) {
-        $result_cid = pg_query($this->db, "select category_id from tasks.categories where user_id='".$this->_username."' and domain_id='".$this->_domain."' and name = '".$folderid."';");
+		$sql = "";
+		if ($this->device_ios || $this->device_outlook) {
+			$sql = "SELECT category_id FROM tasks.categories WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and name = '" .$folderid . "'";
+		} else {
+			$sql = "SELECT category_id FROM tasks.categories WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and built_in = true";
+		}
+		$result_cid = pg_query($this->db, $sql);
         if ($result_cid == FALSE)
             throw new Exception(pg_last_error($this->db));
         while ($row_cid = pg_fetch_row($result_cid)) {

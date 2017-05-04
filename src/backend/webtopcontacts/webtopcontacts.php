@@ -606,11 +606,6 @@ class BackendWebTopContacts extends BackendWebtop implements ISearchProvider {
                 }
                 $arrayContact["other_email"] = $this->truncateString(($message->email3address), 80);
             }
-            if (isset($message->category)) {
-                $arrayContact["category_id"] = $this->getCategoryId($message->category);
-            } else {
-                $arrayContact["category_id"] = $this->getCategoryId("WebTop");
-            }
             if (isset($message->othercity) || is_null($message->othercity)) {
                 $arrayContact["other_city"] = $this->truncateString(($message->othercity), 30);
             }
@@ -658,6 +653,7 @@ class BackendWebTopContacts extends BackendWebtop implements ISearchProvider {
                 $id = $this->getGlobalKey();
                 $arrayContact["contact_id"] = $id;
 				$arrayContact["public_uid"] = uniqid();
+				$arrayContact["category_id"] = $this->getCategoryId($folderid);
 				$arrayContact["is_list"] = false;
                 $result = pg_insert($this->db, 'contacts.contacts', $arrayContact);
                 if ($result == FALSE)
@@ -702,7 +698,13 @@ class BackendWebTopContacts extends BackendWebtop implements ISearchProvider {
     }
 		
 	function getCategoryId($folderid) {
-        $result_cid = pg_query($this->db, "select category_id from contacts.categories where user_id='".$this->_username."' and domain_id='".$this->_domain."' and name = '".$folderid."';");
+		$sql = "";
+		if ($this->device_ios || $this->device_outlook) {
+			$sql = "SELECT category_id FROM contacts.categories WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and name = '" .$folderid . "'";
+		} else {
+			$sql = "SELECT category_id FROM contacts.categories WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and built_in = true";
+		}
+		$result_cid = pg_query($this->db, $sql);
         if ($result_cid == FALSE)
             throw new Exception(pg_last_error($this->db));
         while ($row_cid = pg_fetch_row($result_cid)) {
