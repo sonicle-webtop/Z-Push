@@ -731,7 +731,7 @@ class BackendWebTopContacts extends BackendWebtop implements ISearchProvider {
         try{
 	    	$c_array = array();
 	        array_push($c_array,$company);
-        	$result_user = pg_query_params($this->db, "select description from core.customers where customer_id=$1", $c_array);
+        	$result_user = pg_query_params($this->db, "select description from core.master_data where master_data_id=$1", $c_array);
         	if ($result_user == FALSE)
             	new Exception(pg_last_error($this->db));
         	while ($row_dom = pg_fetch_row($result_user)) {
@@ -749,7 +749,7 @@ class BackendWebTopContacts extends BackendWebtop implements ISearchProvider {
         try{
 	        $c_array = array();
 	        array_push($c_array,$company);
- 		  	$result_user = pg_query_params($this->db, "select customer_id from core.customers where description=$1", $c_array);
+ 		  	$result_user = pg_query_params($this->db, "select master_data_id from core.master_data where description=$1", $c_array);
         	if ($result_user == FALSE)
             	new Exception(pg_last_error($this->db));
         	while ($row_dom = pg_fetch_row($result_user)) {
@@ -834,7 +834,7 @@ class BackendWebTopContacts extends BackendWebtop implements ISearchProvider {
 					. "firstname,"
 					. "lastname,"
 					. "title,"
-					. "COALESCE((select description from core.customers where customer_id=company),company) as company,"
+					. "COALESCE((select description from core.master_data where master_data_id=company),company) as company,"
 					. "home_mobile,"
 					. "work_mobile,"
 					. "work_email "
