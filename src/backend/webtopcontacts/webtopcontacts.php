@@ -809,7 +809,7 @@ class BackendWebTopContacts extends BackendWebtop implements ISearchProvider {
             $et = strrpos($username, "@");
             if ($et != false) {
                 $this->_domain = $this->getDomain($username);
-                $this->_auth_uri = $this->getAuth_Uri($this->_domain);
+                //$this->_auth_uri = $this->getAuth_Uri($this->_domain);
                 $this->_auth_type = $this->getAutheticationType($this->_auth_uri);
                 $this->_username=$this->getLogin($username,$this->_domain);
             } else {
