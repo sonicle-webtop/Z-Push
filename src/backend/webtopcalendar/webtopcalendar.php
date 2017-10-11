@@ -303,7 +303,8 @@ class BackendWebTopCalendar extends BackendWebtop {
                         $message->busystatus = 0;      //libero=0
                 }
                 if (isset($row_event[11])) {
-                    $tzObject = TimezoneUtil::GetFullTZ($row_event[11]);
+                    //$tzObject = TimezoneUtil::GetFullTZ($row_event[11]);
+					$tzObject = $row_event[11];
                 } else {
                     $tzObject = $this->getDefaultTimeZone();
                 }
@@ -1097,7 +1098,8 @@ class BackendWebTopCalendar extends BackendWebtop {
                     $event_rec->alldayevent = 0;
             }
             if (isset($row_event[11])) {
-                $tzObject = TimezoneUtil::GetFullTZ($row_event[11]);
+                //$tzObject = TimezoneUtil::GetFullTZ($row_event[11]);
+				$tzObject = $row_event[11];
             } else {
                 $tzObject = $this->getDefaultTimeZone();
             }

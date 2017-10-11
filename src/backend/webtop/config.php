@@ -5,6 +5,7 @@
 	 *    - 2.3.4 z-push version
 	 *    - 0 sonicle backend revision
 	 */
+	error_reporting(E_ALL & ~E_NOTICE);
 	define('ZPUSH_VERSION','2.3.4.3');
 	// Webtop main config
     define('LOGBASE_DIR','/sonicle/var/log/z-push-sync/');
