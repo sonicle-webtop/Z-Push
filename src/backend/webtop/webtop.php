@@ -37,7 +37,94 @@ abstract class BackendWebtop extends BackendDiff {
     var $AUTH_LDAPAD = "ad";
     
     var $folders_sync = array();
+	
+	private $curl = false;
+	private $curl_auth;
+	const USERAGENT = 'WebTopZPushBackend';
+	
 
+	function curl_init() {
+		if ($this->curl === false) {
+			$this->curl = curl_init();
+			//curl_setopt($this->curl, CURLOPT_HEADER, true);
+			curl_setopt($this->curl, CURLOPT_SSL_VERIFYHOST, false);
+			curl_setopt($this->curl, CURLOPT_SSL_VERIFYPEER, false);
+			curl_setopt($this->curl, CURLOPT_RETURNTRANSFER, true);
+			curl_setopt($this->curl, CURLOPT_USERAGENT, self::USERAGENT);
+
+			if ($this->curl_auth !== null) {
+				//ZLog::Write(LOGLEVEL_INFO, sprintf("WebTop: curl_init: curl_auth = %s", $this->curl_auth));
+				curl_setopt($this->curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+				curl_setopt($this->curl, CURLOPT_USERPWD, $this->curl_auth);
+			}
+		}
+	}
+
+	/**
+	* Send a request to the server
+	*
+	* @param string $url The URL to make the request to
+	*
+	* @return string The content of the response from the server
+	*/
+	function doHTTPRequest($url, $method = "GET", $content = null, $content_type = "text/plain") {
+		$this->curl_init();
+
+		//if ( !isset($url) ) $url = $this->base_url;
+		//$url = preg_replace('{^https?://[^/]+}', '', $url);
+		//$url = $this->server . $url;
+
+		curl_setopt($this->curl, CURLOPT_URL, $url);
+		curl_setopt($this->curl, CURLOPT_CUSTOMREQUEST, $method);
+		curl_setopt($this->curl, CURLOPT_CONNECTTIMEOUT, 30); // 30 seconds it's already too big
+
+		if ($content !== null)
+		{
+			curl_setopt($this->curl, CURLOPT_POST, true);
+			curl_setopt($this->curl, CURLOPT_POSTFIELDS, $content);
+		}
+		else
+		{
+			curl_setopt($this->curl, CURLOPT_POST, false);
+			curl_setopt($this->curl, CURLOPT_POSTFIELDS, null);
+		}
+
+		/*$headers = array();
+		$headers['content-type'] = 'Content-type: ' . $content_type;
+		foreach( $this->headers as $ii => $head ) {
+		  $headers[$ii] = $head;
+		}
+		curl_setopt($this->curl, CURLOPT_HTTPHEADER, $headers);*/
+
+		//$this->xmlResponse = '';
+
+		$response					= curl_exec($this->curl);
+		//$header_size				= curl_getinfo($this->curl, CURLINFO_HEADER_SIZE);
+		//$this->httpResponseCode		= curl_getinfo($this->curl, CURLINFO_HTTP_CODE);
+		//$this->httpResponseHeaders	= trim(substr($response, 0, $header_size));
+		//$this->httpResponseBody		= substr($response, $header_size);
+
+		//$this->headers = array();  // reset the headers array for our next request
+		//$this->ParseResponse($this->httpResponseBody);
+		
+		curl_close($this->curl);
+		$this->curl=false;
+		return $response;
+	}
+
+	function isShared($folderid) {		
+	 return (substr($folderid, -1)=="]");
+	}
+	
+	function getSharedId($folderid) {
+		$ix=strrpos($folderid,"[");
+		if ($ix>=0) {
+			$len=strlen($folderid)-$ix-2;
+			return substr($folderid, $ix+1, $len);
+		}
+		return null;
+	}
+				
     public function HasChangesSink() {
         return true;
     }
@@ -91,6 +178,8 @@ abstract class BackendWebtop extends BackendDiff {
                 $this->_domain = $this->getDefaultDomain();
             }
         }
+		//save curl auth in case it's needed for rest calls
+		$this->curl_auth= $username . ':' . $password;
 	}
 
 	function isLogonEnabled($username, $domain, $password) {

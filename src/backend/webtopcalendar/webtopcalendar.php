@@ -52,11 +52,30 @@ class BackendWebTopCalendar extends BackendWebtop {
                 $todate = " AND end_date >= '" . $todate . "' ";
             }
 			$cat = "";
-            if ($this->device_ios || $this->device_outlook) {
-                $cat = "AND calendar_id IN (SELECT calendar_id FROM calendar.calendars WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and sync in ('R','W') and name = '" .$folderid . "') ";
-            } else {
-                $cat = "AND calendar_id IN (SELECT calendar_id FROM calendar.calendars WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and sync in ('R','W')) ";
-			}
+            //ANDROID if ($this->device_ios || $this->device_outlook) {
+				if ($this->isShared($folderid)) {
+					$sharedid=$this->getSharedId($folderid);
+					$cat = "AND calendar_id = " . $sharedid;
+				} else {
+					$cat = "AND calendar_id IN (SELECT calendar_id FROM calendar.calendars WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and sync in ('R','W') and name = '" .$folderid . "') ";
+				}
+            //ANDROID } else {
+            //ANDROID     $cat = "AND calendar_id IN (SELECT calendar_id FROM calendar.calendars WHERE (user_id='".$this->_username."' and domain_id='".$this->_domain."' and sync in ('R','W')) ";
+			//ANDROID 	//shared folders
+			//ANDROID 	$json_shared=$this->getJSONShared();
+			//ANDROID 	if (sizeof($json_shared)>0) {
+			//ANDROID 		$cat = $cat . " or calendar_id in (";
+			//ANDROID 		for($i = 0; $i < sizeof($json_shared); ++$i){
+			//ANDROID 			if ($i>0) $cat = $cat . ",";
+			//ANDROID 			$cat = $cat . $json_shared[$i]->calendarId;
+			//ANDROID 		}
+			//ANDROID 		$cat = $cat . ")";
+			//ANDROID 	}
+			//ANDROID 	//
+			//ANDROID 	$cat = $cat . " )";
+			//ANDROID 	
+			//ANDROID 	ZLog::Write(LOGLEVEL_INFO, sprintf("WebTop: GetMessageList: cat = %s", $cat));
+			//ANDROID }
             $result = pg_query($this->db, 
 					" SELECT EVENTS.event_id,revision_timestamp "
                     . "FROM calendar.EVENTS "
@@ -94,12 +113,17 @@ class BackendWebTopCalendar extends BackendWebtop {
         }
         return $messages;
     }
+	
+	function getJSONShared() {
+		$resp=$this->doHTTPRequest(SONICLE_REST_BASE_URL . "/api/com.sonicle.webtop.calendar/calendars/incoming");
+		return json_decode($resp);
+	}
 
     function GetFolderList() {
         $calendar = array();
         $this->folders_sync = array();
 		
-        if ($this->device_ios || $this->device_outlook) {
+        //ANDROID if ($this->device_ios || $this->device_outlook) {
             $result = pg_query($this->db, "select distinct name from calendar.calendars where user_id = '" . $this->_username . "' and domain_id='" . $this->_domain . "' and sync in ('R','W');");
             if ($result == FALSE)
                 throw new Exception(pg_last_error($this->db));
@@ -110,11 +134,22 @@ class BackendWebTopCalendar extends BackendWebtop {
                     array_push($calendar, $folder);
                 }
             }
-        } else {
-            array_push($this->folders_sync, "WebTop");
-            $folder = $this->StatFolder("WebTop");
-            array_push($calendar, $folder);
-        }
+			
+			//shared folders
+			$json_shared=$this->getJSONShared();
+			//ZLog::Write(LOGLEVEL_INFO, sprintf("WebTop: GetFolderList: json_shared (%s)", print_r($json_shared, true)));
+			foreach($json_shared as $share) {
+				$share_name=$share->ownerDisplayName . " / " . $share->calendarName . " [" . $share->calendarId . "]";
+				array_push($this->folders_sync, $share_name);
+				$folder = $this->StatFolder($share_name);
+				array_push($calendar, $folder);
+				//ZLog::Write(LOGLEVEL_INFO, sprintf("WebTop: GetFolderList: added folder (%s)", print_r($folder, true)));
+			}
+        //ANDROID } else {
+        //ANDROID     array_push($this->folders_sync, "WebTop");
+        //ANDROID     $folder = $this->StatFolder("WebTop");
+        //ANDROID     array_push($calendar, $folder);
+        //ANDROID }
         return $calendar;
     }
 
@@ -124,12 +159,12 @@ class BackendWebTopCalendar extends BackendWebtop {
             $folder->serverid = $id;
 			$folder->parentid = "0";
             $folder->displayname = $id;
-			if ($this->device_ios || $this->device_outlook) {
+			//ANDROID if ($this->device_ios || $this->device_outlook) {
                 $folder->type = SYNC_FOLDER_TYPE_USER_APPOINTMENT;
-            } else {
-                $folder->type = SYNC_FOLDER_TYPE_APPOINTMENT;
-                $folder->displayname = $this->_username;
-            }
+            //ANDROID } else {
+            //ANDROID     $folder->type = SYNC_FOLDER_TYPE_APPOINTMENT;
+            //ANDROID     $folder->displayname = $this->_username;
+            //ANDROID }
             return $folder;
         } else 
             return null;
@@ -162,11 +197,29 @@ class BackendWebTopCalendar extends BackendWebtop {
                 throw new Exception(pg_last_error($this->db));
 			$folder = $folderid;
 			$cat = "";
-            if ($this->device_ios || $this->device_outlook) {
-                $cat = "AND calendar_id IN (SELECT calendar_id FROM calendar.calendars WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and sync in ('R','W') and name = '".$folderid."') ";
-            } else {
-                $cat = "AND calendar_id IN (SELECT calendar_id FROM calendar.calendars WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and sync in ('R','W')) ";
-			}
+            //ANDROID if ($this->device_ios || $this->device_outlook) {
+				if ($this->isShared($folderid)) {
+					$sharedid=$this->getSharedId($folderid);
+					$cat = "AND calendar_id = " . $sharedid;
+				} else {
+					$cat = "AND calendar_id IN (SELECT calendar_id FROM calendar.calendars WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and sync in ('R','W') and name = '".$folderid."') ";
+				}
+            //ANDROID } else {
+            //ANDROID     $cat = "AND calendar_id IN (SELECT calendar_id FROM calendar.calendars WHERE (user_id='".$this->_username."' and domain_id='".$this->_domain."' and sync in ('R','W')) ";
+			//ANDROID 	//shared folders
+			//ANDROID 	$json_shared=$this->getJSONShared();
+			//ANDROID 	if (sizeof($json_shared)>0) {
+			//ANDROID 		$cat = $cat . " or calendar_id in (";
+			//ANDROID 		for($i = 0; $i < sizeof($json_shared); ++$i){
+			//ANDROID 			if ($i>0) $cat = $cat . ",";
+			//ANDROID 			$cat = $cat . $json_shared[$i]->calendarId;
+			//ANDROID 		}
+			//ANDROID 		$cat = $cat . ")";
+			//ANDROID 	}
+			//ANDROID 	//
+			//ANDROID 	$cat = $cat . " )";
+				
+			//ANDROID }
             $result_events = pg_query($this->db, 
 				"select revision_timestamp "
 				."from calendar.events "
@@ -235,6 +288,19 @@ class BackendWebTopCalendar extends BackendWebtop {
                 $message->fileas = $id;
                 $message->organizeremail = $this->getEmail();
                 $message->meetingstatus = 0;
+				
+				//check private first, to skip shared ones
+                if (isset($row_event[7])) {
+                    if ($row_event[7] == "t") {
+						//skip private events for shared folders
+						if ($this->isShared($folderid)) {
+							$message->deleted = 1;
+							return $message;
+						}
+                        $message->sensitivity = 2;    //privato = 2
+					} else
+                        $message->sensitivity = 0;    //normale = 0
+                }
                 if (isset($row_event[1])) {
                     $message->subject = $row_event[1];
                 }
@@ -278,12 +344,6 @@ class BackendWebTopCalendar extends BackendWebtop {
                 if (isset($row_event[6])) {
                     $message->location = $row_event[6];
                 }
-                if (isset($row_event[7])) {
-                    if ($row_event[7] == "t")
-                        $message->sensitivity = 2;    //privato = 2
-                    else
-                        $message->sensitivity = 0;    //normale = 0
-                }
                 if (isset($row_event[8])) {
                     $message->reminder = $row_event[8];
                 }
@@ -303,11 +363,17 @@ class BackendWebTopCalendar extends BackendWebtop {
                         $message->busystatus = 0;      //libero=0
                 }
                 if (isset($row_event[11])) {
-                    //$tzObject = TimezoneUtil::GetFullTZ($row_event[11]);
-					$tzObject = $row_event[11];
+                    $tzObject = TimezoneUtil::GetFullTZ($row_event[11]);
+					//ZLog::Write(LOGLEVEL_INFO, sprintf("WebTop: GetMessage: tzObject (%s)", print_r($tzObject, true)));
+					if (is_array($tzObject)) {
+						if (empty($tzObject)) $tzObject = $this->getDefaultTimeZone();
+						else $tzObject=$tzObject->tzname;
+					}
+					//$tzObject = $row_event[11];
                 } else {
                     $tzObject = $this->getDefaultTimeZone();
                 }
+				//ZLog::Write(LOGLEVEL_INFO, sprintf("WebTop: GetMessage: tzObject (%s)", print_r($tzObject, true)));
                 $message->timezone = base64_encode($this->GetTzSyncBlob($tzObject));
 				// Ricorrenza
                 if (isset($row_event[12]) && $row_event[12] != "") {   //ricorrenza
@@ -1002,11 +1068,31 @@ class BackendWebTopCalendar extends BackendWebtop {
     public function ChangeFolder($folderid, $oldid, $displayname, $type) {
         return false;
     }
-
+	
+	function isShareReadOnly($sharedid) {
+		$json_shared=$this->getJSONShared();
+		foreach($json_shared as $share) {
+			if ($share->calendarId==$sharedid && $share->readOnly) return true;
+		}
+		return false;
+	}
+	
     // Funzioni specifiche del servizio	
     function IsReadOnly($folderid) {
+		$result=FALSE;
+		if ($this->isShared($folderid)) {
+			$sharedid=$this->getSharedId($folderid);
+			if ($sharedid!=null) {
+				if ($this->isShareReadOnly($sharedid)) {
+					//ZLog::Write(LOGLEVEL_INFO, sprintf("WebTop: isReadOnly: shared %s is read only", $folderid));
+					return true;
+				}
+				$result = pg_query($this->db, "SELECT sync FROM calendar.calendars WHERE sync = 'R' and calendar_id = " . $sharedid . ";");
+			}
+		} else {
+			$result = pg_query($this->db, "SELECT sync FROM calendar.calendars WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and sync = 'R' and name = '" . $folderid . "';");
+		}
 		// Check readonly property
-        $result = pg_query($this->db, "SELECT sync FROM calendar.calendars WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and sync = 'R' and name = '" .$folderid . "';");
         if ($result == FALSE) {
             return false;
 		}
@@ -1058,6 +1144,7 @@ class BackendWebTopCalendar extends BackendWebtop {
             $event_rec = new SyncAppointmentException();
             $event_rec->fileas = $id;
             $event_rec->organizeremail = $this->getEmail();
+			
             if (isset($row_event[1])) {
                 $event_rec->subject = $row_event[1];
             }
@@ -1098,8 +1185,12 @@ class BackendWebTopCalendar extends BackendWebtop {
                     $event_rec->alldayevent = 0;
             }
             if (isset($row_event[11])) {
-                //$tzObject = TimezoneUtil::GetFullTZ($row_event[11]);
-				$tzObject = $row_event[11];
+                $tzObject = TimezoneUtil::GetFullTZ($row_event[11]);
+				//ZLog::Write(LOGLEVEL_INFO, sprintf("WebTop: getEvent: tzObject (%s)", print_r($tzObject, true)));
+				if (is_array($tzObject)) {
+					if (empty($tzObject)) $tzObject = $this->getDefaultTimeZone();
+					else $tzObject=$tzObject->tzname;
+				}
             } else {
                 $tzObject = $this->getDefaultTimeZone();
             }
@@ -1161,11 +1252,16 @@ class BackendWebTopCalendar extends BackendWebtop {
 
     function getCategoryId($folderid,$username,$domain) {
 		$sql = "";
-		if ($this->device_ios || $this->device_outlook) {
-			$sql = "SELECT calendar_id FROM calendar.calendars WHERE user_id='".$username."' and domain_id='".$domain."' and name = '" .$folderid . "'";
-		} else {
-			$sql = "SELECT calendar_id FROM calendar.calendars WHERE user_id='".$username."' and domain_id='".$domain."' and built_in = true";
-		}
+		//ANDROID if ($this->device_ios || $this->device_outlook) {
+			if ($this->isShared($folderid)) {
+				$sharedid=$this->getSharedId($folderid);
+				$sql = "SELECT calendar_id FROM calendar.calendars WHERE calendar_id = " . $sharedid;
+			} else {
+				$sql = "SELECT calendar_id FROM calendar.calendars WHERE user_id='".$username."' and domain_id='".$domain."' and name = '" .$folderid . "'";
+			}
+		//ANDROID } else {
+		//ANDROID 	$sql = "SELECT calendar_id FROM calendar.calendars WHERE user_id='".$username."' and domain_id='".$domain."' and built_in = true";
+		//ANDROID }
         $result = pg_query($this->db, $sql);
         if ($result == FALSE)
             throw new Exception(pg_last_error($this->db));

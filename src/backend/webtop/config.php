@@ -10,6 +10,7 @@
 	// Webtop main config
     define('LOGBASE_DIR','/sonicle/var/log/z-push-sync/');
     define('STATEBASE_DIR', LOGBASE_DIR );
+    define('SONICLE_REST_BASE_URL','http://localhost:28080/webtop5');
     define('SONICLE_DBHOST','webtop.sonicle.com');
     define('SONICLE_DBUSER','sonicle');
     define('SONICLE_DBPASS','sonicle');

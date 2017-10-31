@@ -44,11 +44,28 @@ class BackendWebTopContacts extends BackendWebtop implements ISearchProvider {
             if ($result == FALSE)
                 throw new Exception(pg_last_error($this->db));
             $cat = "";
-            if ($this->device_ios) {
-                $cat = "AND category_id IN (SELECT category_id FROM contacts.categories WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and sync in ('R','W') and name = '" .$folderid . "') ";
-            } else {
-                $cat = "AND category_id IN (SELECT category_id FROM contacts.categories WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and sync in ('R','W')) ";
-			}
+//ANDROID            if ($this->device_ios) {
+				if ($this->isShared($folderid)) {
+					$sharedid=$this->getSharedId($folderid);
+					$cat = "AND category_id = " . $sharedid;
+				} else {
+					$cat = "AND category_id IN (SELECT category_id FROM contacts.categories WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and sync in ('R','W') and name = '" .$folderid . "') ";
+				}
+//ANDROID            } else {
+//ANDROID                $cat = "AND category_id IN (SELECT category_id FROM contacts.categories WHERE (user_id='".$this->_username."' and domain_id='".$this->_domain."' and sync in ('R','W')) ";
+//ANDROID				//shared folders
+//ANDROID				$json_shared=$this->getJSONShared();
+//ANDROID				if (sizeof($json_shared)>0) {
+//ANDROID					$cat = $cat . " or category_id in (";
+//ANDROID					for($i = 0; $i < sizeof($json_shared); ++$i){
+//ANDROID						if ($i>0) $cat = $cat . ",";
+//ANDROID						$cat = $cat . $json_shared[$i]->categoryId;
+//ANDROID					}
+//ANDROID					$cat = $cat . ")";
+//ANDROID				}
+//ANDROID				//
+//ANDROID				$cat = $cat . " )";
+//ANDROID			}
             $result = pg_query($this->db, "select contact_id,revision_timestamp from contacts.contacts where revision_status!='D' ".$cat." and is_list is false;");
             if ($result == FALSE)
                 throw new Exception(pg_last_error($this->db));
@@ -68,11 +85,16 @@ class BackendWebTopContacts extends BackendWebtop implements ISearchProvider {
         return $messages;
     }
 
+	function getJSONShared() {
+		$resp=$this->doHTTPRequest(SONICLE_REST_BASE_URL . "/api/com.sonicle.webtop.contacts/categories/incoming");
+		return json_decode($resp);
+	}
+
     function GetFolderList() {
         $contacts = array();
         $this->folders_sync = array();
 
-		if ($this->device_ios) {
+//ANDROID		if ($this->device_ios) {
             $result = pg_query($this->db, "select distinct name from contacts.categories where user_id = '".$this->_username."' and domain_id='".$this->_domain."' and sync in ('R','W');");
             if ($result == FALSE)
                 throw new Exception(pg_last_error($this->db));
@@ -83,11 +105,22 @@ class BackendWebTopContacts extends BackendWebtop implements ISearchProvider {
                     array_push($contacts, $folder);
                 }
             }
-        } else {
-            array_push($this->folders_sync, "WebTop");
-            $folder = $this->StatFolder("WebTop");
-            array_push($contacts, $folder);
-        }
+			
+			//shared folders
+			$json_shared=$this->getJSONShared();
+			//ZLog::Write(LOGLEVEL_INFO, sprintf("WebTop: GetFolderList: json_shared (%s)", print_r($json_shared, true)));
+			foreach($json_shared as $share) {
+				$share_name=$share->ownerDisplayName . " / " . $share->categoryName . " [" . $share->categoryId . "]";
+				array_push($this->folders_sync, $share_name);
+				$folder = $this->StatFolder($share_name);
+				array_push($contacts, $folder);
+				//ZLog::Write(LOGLEVEL_INFO, sprintf("WebTop: GetFolderList: added folder (%s)", print_r($folder, true)));
+			}
+//ANDROID        } else {
+//ANDROID            array_push($this->folders_sync, "WebTop");
+//ANDROID            $folder = $this->StatFolder("WebTop");
+//ANDROID            array_push($contacts, $folder);
+//ANDROID        }
         return $contacts;
     }
 
@@ -97,12 +130,12 @@ class BackendWebTopContacts extends BackendWebtop implements ISearchProvider {
             $folder->serverid = $id;
             $folder->parentid = "0";
             $folder->displayname = $id;
-			if ($this->device_ios) {
+//ANDROID			if ($this->device_ios) {
                 $folder->type = SYNC_FOLDER_TYPE_USER_CONTACT;
-            } else {
-				$folder->type = SYNC_FOLDER_TYPE_CONTACT;
-                $folder->displayname = $this->_username;
-            }
+//ANDROID            } else {
+//ANDROID				$folder->type = SYNC_FOLDER_TYPE_CONTACT;
+//ANDROID                $folder->displayname = $this->_username;
+//ANDROID            }
             return $folder;
         } else
             return null;
@@ -135,12 +168,31 @@ class BackendWebTopContacts extends BackendWebtop implements ISearchProvider {
             if ($result == FALSE)
                 throw new Exception(pg_last_error($this->db));
 			$cat = "";
-            if ($this->device_ios) {
-                $cat = "AND category_id IN (SELECT category_id FROM contacts.categories WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and sync in ('R','W') and name = '".$folderid."') ";
-            } else {
-                $cat = "AND category_id IN (SELECT category_id FROM contacts.categories WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and sync in ('R','W')) ";
-			}
-            $result_contact = pg_query($this->db, "select revision_timestamp from contacts.contacts where contact_id = ".$id." and revision_status!='D' ".$cat." ;");
+//ANDROID            if ($this->device_ios) {
+				//if ($this->isShared($folderid)) {
+				//	$sharedid=$this->getSharedId($folderid);
+				//	$cat = "AND category_id = " . $sharedid;
+				//} else {
+				//	$cat = "AND category_id IN (SELECT category_id FROM contacts.categories WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and sync in ('R','W') and name = '".$folderid."') ";
+				//}
+				
+//ANDROID            } else {
+//ANDROID                $cat = "AND category_id IN (SELECT category_id FROM contacts.categories WHERE (user_id='".$this->_username."' and domain_id='".$this->_domain."' and sync in ('R','W')) ";
+//ANDROID				//shared folders
+//ANDROID				$json_shared=$this->getJSONShared();
+//ANDROID				if (sizeof($json_shared)>0) {
+//ANDROID					$cat = $cat . " or category_id in (";
+//ANDROID					for($i = 0; $i < sizeof($json_shared); ++$i){
+//ANDROID						if ($i>0) $cat = $cat . ",";
+//ANDROID						$cat = $cat . $json_shared[$i]->categoryId;
+//ANDROID					}
+//ANDROID					$cat = $cat . ")";
+//ANDROID				}
+//ANDROID				//
+//ANDROID				$cat = $cat . " )";
+//ANDROID			}
+            $sql = "select revision_timestamp from contacts.contacts where contact_id = ".$id." and revision_status!='D' ".$cat." ;";
+			$result_contact = pg_query($this->db, $sql);
             if ($result_contact == FALSE)
                 throw new Exception(pg_last_error($this->db));
             while ($row_contact = pg_fetch_row($result_contact)) {
@@ -441,7 +493,9 @@ class BackendWebTopContacts extends BackendWebtop implements ISearchProvider {
     }
 
     function ChangeMessage($folderid, $id, $message, $contentParameters) {
+		//ZLog::Write(LOGLEVEL_INFO, sprintf("WebTop: ChangeMessage: message id=%s (%s)",$id,print_r($message, true)));
 		if ($this->IsReadOnly($folderid)) {
+			//ZLog::Write(LOGLEVEL_INFO, sprintf("WebTop: ChangeMessage: contact is read only"));
 			return false;
 		}
         try {
@@ -655,10 +709,12 @@ class BackendWebTopContacts extends BackendWebtop implements ISearchProvider {
 				$arrayContact["public_uid"] = uniqid();
 				$arrayContact["category_id"] = $this->getCategoryId($folderid);
 				$arrayContact["is_list"] = false;
+				//ZLog::Write(LOGLEVEL_INFO, sprintf("WebTop: ChangeMessage: inserting contact (%s)", print_r($arrayContact, true)));
                 $result = pg_insert($this->db, 'contacts.contacts', $arrayContact);
                 if ($result == FALSE)
                     throw new Exception(pg_last_error($this->db));
             } else {                        //aggiornamento contatto
+				//ZLog::Write(LOGLEVEL_INFO, sprintf("WebTop: ChangeMessage: updating contact (%s)", print_r($arrayContact, true)));
                 $arrayContact["revision_status"] = "M";
                 $result = pg_update($this->db, 'contacts.contacts', $arrayContact, array('contact_id' => $id_contact));
                 if ($result == FALSE){
@@ -684,10 +740,30 @@ class BackendWebTopContacts extends BackendWebtop implements ISearchProvider {
         return false;
     }
 
+	function isShareReadOnly($sharedid) {
+		$json_shared=$this->getJSONShared();
+		foreach($json_shared as $share) {
+			if ($share->categoryId==$sharedid && $share->readOnly) return true;
+		}
+		return false;
+	}
+	
     // Funzioni specifiche del servizio
     function IsReadOnly($folderid) {
+		$result=FALSE;
+		if ($this->isShared($folderid)) {
+			$sharedid=$this->getSharedId($folderid);
+			if ($sharedid!=null) {
+				if ($this->isShareReadOnly($sharedid)) {
+					//ZLog::Write(LOGLEVEL_INFO, sprintf("WebTop: isReadOnly: shared %s is read only", $folderid));
+					return true;
+				}
+				$result = pg_query($this->db, "SELECT sync FROM contacts.categories WHERE sync = 'R' and category_id = " . $sharedid . ";");
+			}
+		} else {
+			$result = pg_query($this->db, "SELECT sync FROM contacts.categories WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and sync = 'R' and name = '" .$folderid . "';");
+		}
 		// Check readonly property
-        $result = pg_query($this->db, "SELECT sync FROM contacts.categories WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and sync = 'R' and name = '" .$folderid . "';");
         if ($result == FALSE) {
             return false;
 		}
@@ -699,11 +775,16 @@ class BackendWebTopContacts extends BackendWebtop implements ISearchProvider {
 		
 	function getCategoryId($folderid) {
 		$sql = "";
-		if ($this->device_ios || $this->device_outlook) {
-			$sql = "SELECT category_id FROM contacts.categories WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and name = '" .$folderid . "'";
-		} else {
-			$sql = "SELECT category_id FROM contacts.categories WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and built_in = true";
-		}
+//ANDROID		if ($this->device_ios || $this->device_outlook) {
+			if ($this->isShared($folderid)) {
+				$sharedid=$this->getSharedId($folderid);
+				$sql = "SELECT category_id FROM contacts.categories WHERE category_id = " . $sharedid;
+			} else {
+				$sql = "SELECT category_id FROM contacts.categories WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and name = '" .$folderid . "'";
+			}
+//ANDROID		} else {
+//ANDROID			$sql = "SELECT category_id FROM contacts.categories WHERE user_id='".$this->_username."' and domain_id='".$this->_domain."' and built_in = true";
+//ANDROID		}
 		$result_cid = pg_query($this->db, $sql);
         if ($result_cid == FALSE)
             throw new Exception(pg_last_error($this->db));
