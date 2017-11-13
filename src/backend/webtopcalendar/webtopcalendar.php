@@ -229,7 +229,7 @@ class BackendWebTopCalendar extends BackendWebtop {
 					."select count(*) "
 					."from calendar.recurrences_broken "
 					."where new_event_id= ".$id.""
-				. ") ;"
+				. ")"
 				);
             if ($result_events == FALSE)
                 throw new Exception(pg_last_error($this->db));
@@ -396,12 +396,15 @@ class BackendWebTopCalendar extends BackendWebtop {
 							."weekly_day_7,"
 							."permanent,"
 							."repeat,"
-							."start_date "
+							."start_date, "
+							."rule "
                         ."from calendar.recurrences "
 						."where recurrence_id='".$row_event[12]."' ;");
                     if ($result == FALSE)
                         throw new Exception(pg_last_error($this->db));
                     if ($row = pg_fetch_row($result)) {
+						$message->recurrence = $this->_ParseRRule($row[18]);
+						/*
                         $recur = new SyncRecurrence();
                         $rec_type = $row[0];
                         switch ($rec_type) {
@@ -457,6 +460,7 @@ class BackendWebTopCalendar extends BackendWebtop {
                             $recur->occurrences = $row[16];
                         }
                         $message->recurrence = $recur;
+						*/
                     }
                 }
                 if (isset($row_event[13]) && $row_event[13] == "t" && $row_event[12] != "") {
@@ -739,17 +743,17 @@ class BackendWebTopCalendar extends BackendWebtop {
 				$recurrence = false;
                 switch ($message->recurrence->type) {
                     case 0: //giornaliera
-                        $arrayRecur["recurr_type"] = "D";
+                        $arrayRecur["type"] = "D";
                         $recurr_type = "D";
                         $recurrence = true;
                         break;
                     case 1: //settimanale
-                        $arrayRecur["recurr_type"] = "W";
+                        $arrayRecur["type"] = "W";
                         $recurr_type = "W";
                         $recurrence = true;
                         break;
                     case 2: //mensile ogni xx del mese
-                        $arrayRecur["recurr_type"] = "M";
+                        $arrayRecur["type"] = "M";
                         $recurr_type = "M";
                         $recurrence = true;
                         break;
@@ -758,7 +762,7 @@ class BackendWebTopCalendar extends BackendWebtop {
                         $recurrence = false;
                         break;
                     case 5: //annuale
-                        $arrayRecur["recurr_type"] = "Y";
+                        $arrayRecur["type"] = "Y";
                         $recurr_type = "Y";
                         $recurrence = true;
                         break;
@@ -821,17 +825,21 @@ class BackendWebTopCalendar extends BackendWebtop {
                     $start_date = gmdate("Y-m-d 00:00:00", $starttime);
                     $arrayRecur["start_date"] = $start_date;
                 }                       //fine annuale
-                if (isset($message->recurrence->occurences)) {
-                    $arrayRecur["repeat"] = $repeat;
-                }
-                if (isset($message->recurrence->until)) {
-                    $until_date = $message->recurrence->until;
+				
+                if (isset($message->recurrence->occurrences)) {
+					$arrayRecur["repeat"] = $message->recurrence->occurrences;
+					$arrayRecur["until_date"] = "2100-12-31 00:00:00";
+					$arrayRecur["permanent"] = false;
+					
+                } else if (isset($message->recurrence->until)) {
+					$until_date = $message->recurrence->until;
                     if ($this->device_android)
                         $until_date = strtotime("-1 days", $until_date);
                     $until_date = gmdate("Y-m-d 00:00:00", $until_date);
                     $arrayRecur["until_date"] = $until_date;
                     $arrayRecur["permanent"] = false;
-                }else {
+					
+                } else {
                     $arrayRecur["until_date"] = "2100-12-31 00:00:00";
                     $arrayRecur["permanent"] = true;
                 }
@@ -1014,9 +1022,9 @@ class BackendWebTopCalendar extends BackendWebtop {
             }else {
                 $arrayEvent["recurrence_id"] = null;
             }//fine ricorrenza
-
+			
             if ($recurrence == true) {
-				$arrayR["rule"] = $this->_GenerateRecurrence($message->recurrence);
+				$arrayRecur["rule"] = $this->_GenerateRRule($message->recurrence);
                 if ($found_id_recurrence == false) {
                     $recurr_id = $this->getRecurrenceId();
                     $arrayRecur["recurrence_id"] = $recurr_id;
@@ -1515,8 +1523,120 @@ class BackendWebTopCalendar extends BackendWebtop {
         }
         return $returnday;
     }
+	
+	/**
+     * Parse a RRULE
+     * @param string $rrulestr
+     */
+    private function _ParseRRule($rrulestr) {
+        $recurrence = new SyncRecurrence();
+		if (isset($rrulestr)) {
+			$rrules = explode(";", $rrulestr);
+			foreach ($rrules as $rrule) {
+				$rule = explode("=", $rrule);
+				switch ($rule[0]) {
+					case "FREQ":
+						switch ($rule[1]) {
+							case "DAILY":
+								$recurrence->type = "0";
+								break;
+							case "WEEKLY":
+								$recurrence->type = "1";
+								break;
+							case "MONTHLY":
+								$recurrence->type = "2";
+								break;
+							case "YEARLY":
+								$recurrence->type = "5";
+						}
+						break;
 
-    private function _GenerateRecurrence($rec) {
+					case "UNTIL":
+						$recurrence->until = TimezoneUtil::MakeUTCDate($rule[1], "UTC"); // rrule must always use UTC
+						break;
+
+					case "COUNT":
+						$recurrence->occurrences = $rule[1];
+						break;
+
+					case "INTERVAL":
+						$recurrence->interval = $rule[1];
+						break;
+
+					case "BYDAY":
+						$dval = 0;
+						$days = explode(",", $rule[1]);
+						foreach ($days as $day) {
+							if ($recurrence->type == "2") {
+								if (strlen($day) > 2) {
+									$recurrence->weekofmonth = intval($day);
+									$day = substr($day,-2);
+								}
+								else {
+									$recurrence->weekofmonth = 1;
+								}
+								$recurrence->type = "3";
+							}
+							switch ($day) {
+								//   1 = Sunday
+								//   2 = Monday
+								//   4 = Tuesday
+								//   8 = Wednesday
+								//  16 = Thursday
+								//  32 = Friday
+								//  62 = Weekdays  // not in spec: daily weekday recurrence
+								//  64 = Saturday
+								case "SU":
+									$dval += 1;
+									break;
+								case "MO":
+									$dval += 2;
+									break;
+								case "TU":
+									$dval += 4;
+									break;
+								case "WE":
+									$dval += 8;
+									break;
+								case "TH":
+									$dval += 16;
+									break;
+								case "FR":
+									$dval += 32;
+									break;
+								case "SA":
+									$dval += 64;
+									break;
+							}
+						}
+						$recurrence->dayofweek = $dval;
+						break;
+
+						//Only 1 BYMONTHDAY is supported, so BYMONTHDAY=2,3 will only include 2
+					case "BYMONTHDAY":
+						$days = explode(",", $rule[1]);
+						$recurrence->dayofmonth = $days[0];
+						break;
+
+					case "BYMONTH":
+						$recurrence->monthofyear = $rule[1];
+						break;
+
+					default:
+						ZLog::Write(LOGLEVEL_WARN, sprintf("WTCalendar->_ParseRRule(): '%s' is not yet supported.", $rule[0]));
+				}
+			}
+		} else {
+			ZLog::Write(LOGLEVEL_WARN, sprintf("WTCalendar->_ParseRRule(): invalid rrule string.", $rule[0]));
+		}
+        return $recurrence;
+    }
+	
+	/**
+     * Generate Recurrence
+     * @param string $rec
+     */
+    private function _GenerateRRule($rec) {
         $rrule = array();
         if (isset($rec->type)) {
             $freq = "";
