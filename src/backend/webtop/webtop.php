@@ -239,6 +239,18 @@ abstract class BackendWebtop extends BackendDiff {
         else
             return substr($string, 0, $size - 1);
     }
+	
+	function getDomainInternetName($domainId) {
+		$result = pg_query($this->db, ("select internet_name from core.domains where (domain_id='".$domainId."');"));
+		if ($result == false) {
+			throw new Exception(pg_last_error($this->db));
+		}
+		while ($row = pg_fetch_row($result)) {
+			if (isset($row[0])) {
+				return $row[0];
+			}
+		}
+	}
 
     function getDefaultDomain() {
         $result_domain = pg_query($this->db, ("select domain_id from core.domains where 1=0;"));

@@ -553,6 +553,7 @@ class BackendWebTopCalendar extends BackendWebtop {
                 return true;
             }
             $arrayEvents = array();
+			$arrayEvents["handle_invitation"] = true;
             $arrayEvents["revision_status"] = "D";
             $arrayEvents["revision_timestamp"] = "NOW()";
             $result = pg_update($this->db, "calendar.events", $arrayEvents, array('event_id' => $event_id));
@@ -686,12 +687,18 @@ class BackendWebTopCalendar extends BackendWebtop {
                 $arrayEvent["calendar_id"] = $this->getCategoryId($folderid,$this->_username,$this->_domain);
             }
             $arrayEvent["revision_timestamp"] = "NOW()";
+			if (isset($message->attendees)) {
+				$arrayEvent["handle_invitation"] = true;
+			} else {
+				$arrayEvent["handle_invitation"] = false;
+			}
+			$organizeremail = $this->getEmail();
             if (!$found_id_event) {
                 $arrayEvent["revision_status"] = "N";
                 $id = $this->getGlobalKey();
                 $arrayEvent["event_id"] = $id;
-				$arrayEvent["public_uid"] = uniqid();
-				$arrayEvent["organizer"] = $this->_emaillogin;
+				$arrayEvent["public_uid"] = uniqid().".".md5(strval($id))."@".$this->getDomainInternetName($this->_domain);
+				$arrayEvent["organizer"] = $organizeremail;
 				$arrayEvent["read_only"] = false;
                 $result = pg_insert($this->db, 'calendar.events', $arrayEvent);
                 if ($result == FALSE)
@@ -709,9 +716,10 @@ class BackendWebTopCalendar extends BackendWebtop {
                     $e_id = $event_id;
                 $this->deleteAttendees($e_id);
                 foreach ($message->attendees as $attendee) {
+					if ($organizeremail == $attendee->email) continue;
                     $arrayAttendees["attendee_id"] = $this->getAttendeeId();
                     $arrayAttendees["event_id"] = $e_id;
-                    $arrayAttendees["notify"] = false;
+                    $arrayAttendees["notify"] = true;
                     $arrayAttendees["recipient_type"] = "IND";
                     if (isset($attendee->email))
                         $arrayAttendees["recipient"] = $attendee->email;
