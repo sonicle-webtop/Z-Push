@@ -17,6 +17,8 @@ require_once("backend/webtop/z_RTF.php");
 require_once("backend/webtop/dbconnect.php");
 
 class BackendWebTopCalendar extends BackendWebtop {
+	
+	private $zRFC822;
 
     function Logon($username, $domain, $password) {
         $deviceType = strtolower(Request::GetDeviceType());
@@ -488,25 +490,35 @@ class BackendWebTopCalendar extends BackendWebtop {
                     }
                 }
                 $result_planning = pg_query($this->db, "select recipient,response_status from calendar.events_attendees where recipient is not null and event_id=".$id);
-                while ($row_planning = pg_fetch_row($result_planning)) {
+				while ($row_planning = pg_fetch_row($result_planning)) {
 					if (!isset($message->attendees))
 						$message->attendees = array();
                     $attendee = new SyncAttendee();
 					$message->meetingstatus = 1;
                     if (isset($row_planning[0])) {
-                        $attendee->name = $row_planning[0];
-                        $attendee->email = $row_planning[0];
+						$ia = $this->parseInternetAddress($row_planning[0]);
+						if ($ia === false) {
+							ZLog::Write(LOGLEVEL_WARN, sprintf("Unable to parse attentee recipient [%s]", $row_planning[0]));
+							continue;
+						}
+						if ($ia->host == 'localhost') {
+							continue; // Skip attendees with invalid emails (no declared domain)
+						}
+						
+						$attendee->name = $ia->display;
+						$attendee->email = $ia->address;
                     }
-					$message->attendeestatus = 0;
+					$attendee->attendeetype = 1;
+					$attendee->attendeestatus = 0;
                     if (isset($row_planning[1])) {
 						if ($row_planning[1] == "NA") {
-							$message->attendeestatus = 5;
+							$attendee->attendeestatus = 5;
 						} else if ($row_planning[1] == "AC") {
-							$message->attendeestatus = 3;
+							$attendee->attendeestatus = 3;
 						} else if ($row_planning[1] == "TE") {
-							$message->attendeestatus = 2;
+							$attendee->attendeestatus = 2;
 						} else if ($row_planning[1] == "DE") {
-							$message->attendeestatus = 4;
+							$attendee->attendeestatus = 4;
 						}
 					}
 					array_push($message->attendees, $attendee);
@@ -521,6 +533,22 @@ class BackendWebTopCalendar extends BackendWebtop {
         }
         return $message;
     }
+	
+	function parseInternetAddress($internetAddress) {
+		if (!isset($this->zRFC822)) $this->zRFC822 = new Mail_RFC822();
+		$parsed = $this->zRFC822->parseAddressList($internetAddress, 'localhost', false);
+		if ($parsed === false) return false;
+		if (!isset($parsed[0]->mailbox)) return false;
+		
+		$address = $parsed[0]->mailbox . '@' . $parsed[0]->host;
+		$display = isset($parsed[0]->personal) ? $parsed[0]->personal : $address;
+		
+		return (object)[
+			'display' => $display,
+			'address' => $address,
+			'host' => $parsed[0]->host
+		];
+	}
 
     function DeleteMessage($folderid, $id, $contentParameters) {
 		if ($this->IsReadOnly($folderid)) {
@@ -1749,6 +1777,52 @@ class BackendWebTopCalendar extends BackendWebtop {
 	// Fine funzioni specifiche del servizio
 
 	
+	
+	
+	function toSyncAttendeeType($recipient_type, $recipient_role) {
+		// POOMCAL:Attendee_Type >= 12.0
+		// 1: Required, 2: Optional, 3: Resource
+		$value = 1;
+		if ($recipient_type == "RES") {
+			$value = 3;
+		} else {
+			if ($recipient_role == "REQ") {
+				$value = 1;
+			} else if ($recipient_role == "OPT") {
+				$value = 2;
+			}
+		}
+		return $value;
+	}
+	
+	function toSyncAttendeeStatus($response_status) {
+		// POOMCAL:Attendee_Status >= 12.0
+		// 0: Response unknown, 2: Tentative, 3: Accept, 4: Decline, 5: Not responded
+		$value = 0;
+		if ($response_status == "NA") {
+			$value = 5;
+		} else if ($response_status == "TE") {
+			$value = 2;
+		} else if ($response_status == "AC") {
+			$value = 3;
+		} else if ($response_status == "DE") {
+			$value = 4;
+		}
+		return $value;
+	}
+	
+	function fromSyncAttendeeStatus($attendee_status) {
+		// NA: Needs action, TE: Tentative, AC: Accepted, DE: Declined
+		$value = "NA";
+		if ($attendee_status == 2) {
+			$value = "TE";
+		} else if ($attendee_status == 3) {
+			$value = "AC";
+		} else if ($attendee_status == 4) {
+			$value = "DE";
+		}
+		return $value;
+	}
 }
 
 
