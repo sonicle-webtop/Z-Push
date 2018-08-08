@@ -706,7 +706,8 @@ class BackendWebTopContacts extends BackendWebtop implements ISearchProvider {
                 $arrayContact["revision_status"] = "N";
                 $id = $this->getGlobalKey();
                 $arrayContact["contact_id"] = $id;
-				$arrayContact["public_uid"] = uniqid();
+				$arrayContact["public_uid"] = $this->buildContactUid($id, $this->getDomainInternetName($this->_domain));
+				$arrayContact["href"] = $this->buildHref($arrayContact["public_uid"]);
 				$arrayContact["category_id"] = $this->getCategoryId($folderid);
 				$arrayContact["is_list"] = false;
 				//ZLog::Write(LOGLEVEL_INFO, sprintf("WebTop: ChangeMessage: inserting contact (%s)", print_r($arrayContact, true)));
@@ -985,7 +986,14 @@ class BackendWebTopContacts extends BackendWebtop implements ISearchProvider {
         return $groupname;
     }
 
-
+	private function buildContactUid($contactId, $internetName) {
+		$s = uniqid() . "." . strval($contactId);
+		return md5($s) . "@" . $internetName;
+	}
+	
+	private function buildHref($publicUid) {
+		return $publicUid . ".vcf";
+	}
 }
 
 ;

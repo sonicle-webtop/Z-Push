@@ -725,7 +725,8 @@ class BackendWebTopCalendar extends BackendWebtop {
                 $arrayEvent["revision_status"] = "N";
                 $id = $this->getGlobalKey();
                 $arrayEvent["event_id"] = $id;
-				$arrayEvent["public_uid"] = uniqid().".".md5(strval($id))."@".$this->getDomainInternetName($this->_domain);
+				$arrayEvent["public_uid"] = $this->buildEventUid($id, $this->getDomainInternetName($this->_domain));
+				$arrayEvent["href"] = $this->buildHref($arrayEvent["public_uid"]);
 				$arrayEvent["organizer"] = $organizeremail;
 				$arrayEvent["read_only"] = false;
                 $result = pg_insert($this->db, 'calendar.events', $arrayEvent);
@@ -1559,6 +1560,15 @@ class BackendWebTopCalendar extends BackendWebtop {
         }
         return $returnday;
     }
+	
+	private function buildEventUid($eventId, $internetName) {
+		$s = uniqid() . "." . strval($eventId);
+		return md5($s) . "@" . $internetName;
+	}
+	
+	private function buildHref($publicUid) {
+		return $publicUid . ".ics";
+	}
 	
 	/**
      * Parse a RRULE
