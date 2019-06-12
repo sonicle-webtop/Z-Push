@@ -517,21 +517,21 @@ class BackendWebTopContacts extends BackendWebtop implements ISearchProvider {
             $arrayContact["searchfield"] = "";
             $message->fileas = $id;
 			$dn = "";
-            if (isset($message->firstname) || is_null($message->firstname)) {
+            if (isset($message->firstname) || !is_null($message->firstname)) {
                 $arrayContact["firstname"] = $this->truncateString(($message->firstname), 60);
                 $arrayContact["searchfield"] = $arrayContact["searchfield"] . $arrayContact["firstname"];
-				if (!is_empty($arrayContact["firstname"])) {
+				if ($arrayContact["firstname"] !== '') {
 					$dn = $arrayContact["firstname"];
 				}
             }
-            if (isset($message->lastname) || is_null($message->lastname)) {
+            if (isset($message->lastname) || !is_null($message->lastname)) {
                 $arrayContact["lastname"] = $this->truncateString(($message->lastname), 60);
                 $arrayContact["searchfield"] = $arrayContact["searchfield"] . $arrayContact["lastname"];
-				if (!is_empty($arrayContact["lastname"])) {
-					$dn = $dn . " " . $arrayContact["firstname"];
+				if ($arrayContact["lastname"] !== '') {
+					$dn = $dn . " " . $arrayContact["lastname"];
 				}
             }
-			if (!is_empty($dn)) {
+			if ($dn !== '') {
 				$arrayContact["display_name"] = $this->truncateString(trim($dn), 255);
 			}
             if (isset($message->title) || is_null($message->title)) {
